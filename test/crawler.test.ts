@@ -47,7 +47,7 @@ afterEach(() => {
 });
 
 describe("crawl", () => {
-  it("returns deduped links from a single page (maxDepth 0 does not recurse)", async () => {
+  it("returns deduped same-origin links from a single page (maxDepth 0 does not recurse)", async () => {
     const fetchMock = stubFetch({
       "http://example.com/": {
         html: `
@@ -62,11 +62,12 @@ describe("crawl", () => {
 
     const links = await crawl("http://example.com/", { maxDepth: 0 });
 
-    expect(links).toEqual(["http://example.com/a", "http://other.com/x", "https://secure.com/"]);
+    // External links (other.com, secure.com) are ignored; only same-origin links are returned.
+    expect(links).toEqual(["http://example.com/a"]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("follows same-origin links up to maxDepth, recording but not crawling external links", async () => {
+  it("follows same-origin links up to maxDepth, ignoring external links", async () => {
     const fetchMock = stubFetch({
       "http://example.com/": {
         html: `<a href="/a">a</a><a href="http://other.com/">external</a>`,
@@ -78,8 +79,8 @@ describe("crawl", () => {
 
     const links = await crawl("http://example.com/", { maxDepth: 1 });
 
-    expect(links).toEqual(["http://example.com/a", "http://other.com/", "http://example.com/b"]);
-    // Only same-origin pages are fetched; the external link is never requested.
+    // The external link is neither recorded nor requested.
+    expect(links).toEqual(["http://example.com/a", "http://example.com/b"]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).not.toHaveBeenCalledWith("http://other.com/", expect.anything());
   });

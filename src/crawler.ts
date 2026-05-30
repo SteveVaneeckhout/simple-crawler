@@ -47,7 +47,7 @@ async function fetchPage(url: string, deadline: number): Promise<string | null> 
 /**
  * Crawl a website starting from `startUrl` and return the unique links discovered.
  *
- * Only same-origin pages are followed; external links are recorded but not crawled.
+ * Only same-origin links are followed and recorded; links to other origins are ignored.
  *
  * @param startUrl The URL to start crawling from.
  * @param options Optional limits: `maxDepth`, `maxLinks`, and `timeout`.
@@ -99,6 +99,11 @@ export async function crawl(startUrl: string, options: CrawlOptions = {}): Promi
         continue;
       }
 
+      // Only same-origin links are recorded and crawled; external links are ignored.
+      if (resolved.origin !== origin) {
+        continue;
+      }
+
       resolved.hash = "";
       const link = resolved.toString();
 
@@ -106,7 +111,7 @@ export async function crawl(startUrl: string, options: CrawlOptions = {}): Promi
         found.add(link);
       }
 
-      if (resolved.origin === origin && item.depth < maxDepth && !visited.has(link)) {
+      if (item.depth < maxDepth && !visited.has(link)) {
         queue.push({ url: link, depth: item.depth + 1 });
       }
     }

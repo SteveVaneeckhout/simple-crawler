@@ -9,7 +9,7 @@ export interface CrawlOptions {
 /**
  * Crawl a website starting from `startUrl` and return the unique links discovered.
  *
- * Only same-origin pages are followed; external links are recorded but not crawled.
+ * Only same-origin links are followed and recorded; links to other origins are ignored.
  *
  * @param startUrl The URL to start crawling from.
  * @param options Optional limits: `maxDepth`, `maxLinks`, and `timeout`.
