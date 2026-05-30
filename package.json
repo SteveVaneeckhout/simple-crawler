@@ -1,0 +1,51 @@
+{
+  "name": "simple-crawler",
+  "version": "1.0.0",
+  "description": "Finds webpages by crawling a website",
+  "homepage": "https://github.com/SteveVaneeckhout/simple-crawler#readme",
+  "bugs": {
+    "url": "https://github.com/SteveVaneeckhout/simple-crawler/issues"
+  },
+  "license": "MIT",
+  "author": "Steve Vaneeckhout",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SteveVaneeckhout/simple-crawler.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.4",
+    "@vitest/coverage-v8": "^4.1.7",
+    "oxfmt": "^0.52.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
+  },
+  "engines": {
+    "node": ">=24.15.0"
+  }
+}
