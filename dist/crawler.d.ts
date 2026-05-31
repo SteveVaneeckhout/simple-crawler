@@ -13,6 +13,6 @@ export interface CrawlOptions {
  *
  * @param startUrl The URL to start crawling from.
  * @param options Optional limits: `maxDepth`, `maxLinks`, and `timeout`.
- * @returns A flat array of unique links found across the crawled pages.
+ * @returns A flat array of unique links found across the crawled pages, sorted alphabetically.
  */
 export declare function crawl(startUrl: string, options?: CrawlOptions): Promise<string[]>;

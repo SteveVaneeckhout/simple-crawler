@@ -36,7 +36,7 @@ async function fetchPage(url, deadline) {
  *
  * @param startUrl The URL to start crawling from.
  * @param options Optional limits: `maxDepth`, `maxLinks`, and `timeout`.
- * @returns A flat array of unique links found across the crawled pages.
+ * @returns A flat array of unique links found across the crawled pages, sorted alphabetically.
  */
 export async function crawl(startUrl, options = {}) {
     let origin;
@@ -92,5 +92,5 @@ export async function crawl(startUrl, options = {}) {
             }
         }
     }
-    return [...found];
+    return [...found].sort();
 }
