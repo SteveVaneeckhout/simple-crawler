@@ -217,7 +217,7 @@ describe("crawl", () => {
 
     const links = await crawl("http://example.com/", { maxDepth: 5 });
 
-    expect(links).toEqual(["http://example.com/a", "http://example.com/"]);
+    expect(links).toEqual(["http://example.com/", "http://example.com/a"]);
     // "/" and "/a" are each fetched exactly once despite being referenced multiple times.
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

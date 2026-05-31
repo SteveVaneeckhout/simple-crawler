@@ -51,7 +51,7 @@ async function fetchPage(url: string, deadline: number): Promise<string | null> 
  *
  * @param startUrl The URL to start crawling from.
  * @param options Optional limits: `maxDepth`, `maxLinks`, and `timeout`.
- * @returns A flat array of unique links found across the crawled pages.
+ * @returns A flat array of unique links found across the crawled pages, sorted alphabetically.
  */
 export async function crawl(startUrl: string, options: CrawlOptions = {}): Promise<string[]> {
   let origin: string;
@@ -117,5 +117,5 @@ export async function crawl(startUrl: string, options: CrawlOptions = {}): Promi
     }
   }
 
-  return [...found];
+  return [...found].sort();
 }

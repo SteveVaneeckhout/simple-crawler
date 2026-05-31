@@ -51,8 +51,8 @@ const links = await crawl("https://example.com/");
 function crawl(startUrl: string, options?: CrawlOptions): Promise<string[]>;
 ```
 
-Crawls `startUrl` and resolves to an array of unique, absolute links found across the
-crawled pages. Throws if `startUrl` is not a valid URL.
+Crawls `startUrl` and resolves to an alphabetically sorted array of unique, absolute
+links found across the crawled pages. Throws if `startUrl` is not a valid URL.
 
 #### `CrawlOptions`
 
@@ -74,8 +74,8 @@ crawled pages. Throws if `startUrl` is not a valid URL.
   malformed hrefs are ignored.
 - **Resilience.** A page that fails to fetch, returns a non-OK status, or isn't HTML is
   skipped — one bad page never aborts the crawl.
-- **Crawl order.** Breadth-first and sequential (deterministic), so the returned order
-  reflects the order links were discovered.
+- **Crawl order.** Breadth-first and sequential (deterministic).
+- **Result order.** The returned links are sorted alphabetically.
 
 ### Bot protection
 
