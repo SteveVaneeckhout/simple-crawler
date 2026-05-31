@@ -72,6 +72,13 @@ links found across the crawled pages. Throws if `startUrl` is not a valid URL.
   page HTML are. Hash fragments (`#section`) are stripped, query strings are kept.
 - **Skipped links.** Non-`http(s)` schemes (`mailto:`, `tel:`, `javascript:`, …) and
   malformed hrefs are ignored.
+- **HTML pages only.** Links that point at non-HTML resources (videos, images, PDFs,
+  archives, stylesheets, …) are excluded from the results. They are filtered first by a
+  cheap file-extension check, then — for links that survive it — by a `HEAD` request that
+  confirms the response is `text/html`. A link is only dropped when it is positively
+  identified as non-HTML; if the `HEAD` request fails, is blocked, or returns no
+  `Content-Type`, the link is kept. Note this `HEAD` verification adds one extra request
+  per discovered link.
 - **Resilience.** A page that fails to fetch, returns a non-OK status, or isn't HTML is
   skipped — one bad page never aborts the crawl.
 - **Crawl order.** Breadth-first and sequential (deterministic).

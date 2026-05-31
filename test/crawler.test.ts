@@ -27,7 +27,7 @@ interface PageSpec {
 }
 
 function stubFetch(pages: Record<string, PageSpec>) {
-  const fetchMock = vi.fn(async (input: string | URL | Request) => {
+  const fetchMock = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
     const page = pages[url];
     if (page === undefined) {
@@ -64,7 +64,8 @@ describe("crawl", () => {
 
     // External links (other.com, secure.com) are ignored; only same-origin links are returned.
     expect(links).toEqual(["http://example.com/a"]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // One GET for the start page plus one HEAD to verify "/a" is HTML.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("follows same-origin links up to maxDepth, ignoring external links", async () => {
@@ -81,7 +82,8 @@ describe("crawl", () => {
 
     // The external link is neither recorded nor requested.
     expect(links).toEqual(["http://example.com/a", "http://example.com/b"]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // GET "/" + HEAD "/a", then GET "/a" + HEAD "/b": two pages crawled, two links verified.
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(fetchMock).not.toHaveBeenCalledWith("http://other.com/", expect.anything());
   });
 
@@ -95,7 +97,9 @@ describe("crawl", () => {
     const links = await crawl("http://example.com/", { maxDepth: 5, maxLinks: 2 });
 
     expect(links).toEqual(["http://example.com/a", "http://example.com/b"]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // GET the start page, then a HEAD to verify each of "/a" and "/b"; "/c" is never
+    // reached because the link budget is full.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("returns immediately when the timeout budget is already spent", async () => {
@@ -188,6 +192,93 @@ describe("crawl", () => {
     expect(links).toEqual(["http://example.com/ok"]);
   });
 
+  it("excludes links to non-HTML extensions without requesting them", async () => {
+    const fetchMock = stubFetch({
+      "http://example.com/": {
+        html: `
+          <a href="/media/x.mp4?mode=pad&rnd=132761738675370000">video</a>
+          <a href="/styles/app.css">stylesheet</a>
+          <a href="/docs/report.PDF">report</a>
+          <a href="/page">real page</a>
+        `,
+      },
+    });
+
+    const links = await crawl("http://example.com/", { maxDepth: 0 });
+
+    // The media/asset links are dropped by the extension filter; only the page remains.
+    expect(links).toEqual(["http://example.com/page"]);
+    // The extension filter runs before any network call, so the .mp4 is never requested.
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "http://example.com/media/x.mp4?mode=pad&rnd=132761738675370000",
+      expect.anything(),
+    );
+  });
+
+  it("excludes an extensionless link whose content-type is not HTML", async () => {
+    stubFetch({
+      "http://example.com/": {
+        html: `<a href="/video">video</a><a href="/page">page</a>`,
+      },
+      // No file extension, so it survives the extension filter and is verified by HEAD.
+      "http://example.com/video": { contentType: "video/mp4" },
+    });
+
+    const links = await crawl("http://example.com/", { maxDepth: 0 });
+
+    expect(links).toEqual(["http://example.com/page"]);
+  });
+
+  it("keeps links that cannot be confirmed as non-HTML", async () => {
+    stubFetch({
+      "http://example.com/": {
+        html: `
+          <a href="/missing-ct">no content-type header</a>
+          <a href="/throws">head request fails</a>
+          <a href="/not-stubbed">non-OK response</a>
+        `,
+      },
+      // HEAD responds 200 but without a content-type header.
+      "http://example.com/missing-ct": { contentType: null },
+      // HEAD request throws (e.g. network error).
+      "http://example.com/throws": { throws: true },
+      // "/not-stubbed" is absent, so the stub answers with a non-OK response.
+    });
+
+    const links = await crawl("http://example.com/", { maxDepth: 0 });
+
+    // None could be positively confirmed as non-HTML, so all are kept.
+    expect(links).toEqual([
+      "http://example.com/missing-ct",
+      "http://example.com/not-stubbed",
+      "http://example.com/throws",
+    ]);
+  });
+
+  it("verifies a link found on multiple pages only once (cached HEAD check)", async () => {
+    const fetchMock = stubFetch({
+      "http://example.com/": {
+        html: `<a href="/p1">p1</a><a href="/p2">p2</a>`,
+      },
+      "http://example.com/p1": { html: `<a href="/shared">shared</a>` },
+      "http://example.com/p2": { html: `<a href="/shared">shared</a>` },
+      "http://example.com/shared": { html: `` },
+    });
+
+    const links = await crawl("http://example.com/", { maxDepth: 5 });
+
+    expect(links).toEqual([
+      "http://example.com/p1",
+      "http://example.com/p2",
+      "http://example.com/shared",
+    ]);
+    // Despite being linked from both /p1 and /p2, "/shared" is HEAD-verified exactly once.
+    const sharedHeadCalls = fetchMock.mock.calls.filter(
+      ([url, init]) => url === "http://example.com/shared" && init?.method === "HEAD",
+    );
+    expect(sharedHeadCalls).toHaveLength(1);
+  });
+
   it("strips hash fragments and dedupes the result", async () => {
     stubFetch({
       "http://example.com/": {
@@ -218,8 +309,9 @@ describe("crawl", () => {
     const links = await crawl("http://example.com/", { maxDepth: 5 });
 
     expect(links).toEqual(["http://example.com/", "http://example.com/a"]);
-    // "/" and "/a" are each fetched exactly once despite being referenced multiple times.
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // "/" and "/a" are each GET exactly once despite being referenced multiple times,
+    // and each is HEAD-verified exactly once (the verification result is cached).
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("throws on an invalid start URL", async () => {
